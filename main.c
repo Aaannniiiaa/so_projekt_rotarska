@@ -61,7 +61,26 @@ void kierowca(){
     exit(0);
 }
 
-void pasazer(int nr, int *miejsca, int id_s){
+int kup_bilet(int id_s, int *bilety, int *miejsca){
+    lock(id_s);
+    if(*bilety < POJ && *miejsca >0){
+        (*bilety)++;
+        printf("Sprzedano bilet, bilety: %d\n", *bilety);
+        unlock(id_s);
+        return 1;
+    }
+    else{
+        printf("Brak biletow, bilety:%d\n", *bilety);
+        unlock(id_s);
+        return 0;
+    }
+}
+
+void pasazer(int nr, int *miejsca, int id_s, int *bilety){
+    if(!kup_bilet(id_s, bilety, miejsca)){
+        printf("Pasazer nr: %d nie kupil biletu\n", nr);
+        exit(0);
+    }
     lock(id_s);
     if (*miejsca > 0){
         (*miejsca)--;
@@ -93,7 +112,7 @@ int main(){
     printf("Id: %d\n", id);
 
     int *wspolne =shmat(id, NULL, 0);
-    int *miejsca=&wspolne[0]; //0-miejsca,1-bilety,2-kolejka
+    int *miejsca=&wspolne[0]; //0-miejsca,1-bilety
     *miejsca=POJ;
     int *bilety=&wspolne[1];
     *bilety=0;
@@ -109,7 +128,7 @@ int main(){
     for(int i=1; i<=ILO_PAS; i++){
         int pid = fork();
         if(pid==0){
-            pasazer(i, miejsca, id_sem);
+            pasazer(i, miejsca, id_sem, bilety);
         }
     }
 
