@@ -5,9 +5,35 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
+#include <sys/sem.h>
+#include <errno.h>
 
 #define ILO_PAS 5
 #define POJ 2
+
+static int create_or_get(key_t key){
+    int n_id_sem = semget(key, 1, IPC_CREAT | IPC_EXCL | 0600);
+    if (n_id_sem!= -1) {
+        union union_sem { int val; } arg;
+        arg.val = 1;
+        if (semctl(n_id_sem, 0, SETVAL, arg) == -1) {
+            perror("semctl SETVAL");
+            exit(1);
+        }
+        return n_id_sem;
+    }
+    if (errno == EEXIST) {
+        n_id_sem = semget(key, 1, IPC_CREAT | 0600);
+        if (n_id_sem == -1) {
+            perror("semget existing");
+            exit(1);
+        }
+        return n_id_sem;
+    }
+
+    perror("semget");
+    exit(1);
+}
 
 void kasa(){
     printf("Kasa PID=%d\n", getpid());
@@ -50,7 +76,15 @@ int main(){
     *miejsca=POJ;
     printf("Miejsca = %d\n", *miejsca);
 
-    for(int i=1; i<=5; i++){
+    key_t key_sem = ftok("main.c", 'B');
+    if(key_sem == -1){
+        perror("ftok kem sem");
+        exit(1);
+    }
+
+    int id_sem =create_or_get(key_sem);
+
+    for(int i=1; i<=ILO_PAS; i++){
         int pid = fork();
         if(pid==0){
             pasazer(i, miejsca);
