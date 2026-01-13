@@ -35,6 +35,22 @@ static int create_or_get(key_t key){
     exit(1);
 }
 
+void lock(int id_s){
+    struct sembuf x = {0, -1, 0};
+    if (semop(id_s, &x, 1) == -1){
+        perror("semop lock");
+        exit(1);
+    }
+}
+
+void unlock(int id_s){
+    struct sembuf x = {0, 1, 0};
+    if (semop(id_s, &x, 1)==-1){
+        perror("semop unlock");
+        exit(1);
+    }
+}
+
 void kasa(){
     printf("Kasa PID=%d\n", getpid());
     exit(0);
@@ -50,7 +66,8 @@ void kierowca(){
     exit(0);
 }
 
-void pasazer(int nr, int *miejsca){
+void pasazer(int nr, int *miejsca, int id_s){
+    lock(id_s);
     if (*miejsca > 0){
         (*miejsca)--;
         printf("Pasazer %d wsiada, miejsca=%d, PID=%d\n", nr, *miejsca, getpid());
@@ -59,6 +76,7 @@ void pasazer(int nr, int *miejsca){
     {
         printf("Pasazer %d, Brak miejsc, PID=%d\n", nr, getpid());
     }
+    unlock(id_s);
     exit(0);
 }
 
@@ -87,7 +105,7 @@ int main(){
     for(int i=1; i<=ILO_PAS; i++){
         int pid = fork();
         if(pid==0){
-            pasazer(i, miejsca);
+            pasazer(i, miejsca, id_sem);
         }
     }
 
@@ -97,11 +115,11 @@ int main(){
     if(shmdt(miejsca)==-1){
         perror("shmdt");
         exit(1);
-    };
+    }
     printf("Odlaczono\n");
     if(shmctl(id, IPC_RMID, NULL)==-1){
         perror("shmctl");
         exit(1);
-    };
+    }
     return 0;
 }
