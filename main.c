@@ -41,7 +41,7 @@ int main(){
     printf("Key = %d\n", (int)key);
     int id = shmget(key,sizeof(int), IPC_CREAT | 0600);
     if (id == -1){
-        printf("Blad\n");
+        perror("shmget");
         exit(1);
     }
     printf("Id: %d\n", id);
@@ -56,32 +56,18 @@ int main(){
             pasazer(i, miejsca);
         }
     }
-    
-   /* if (id==0){
-        kasa();
-    }
 
-    id=fork();
-    if(id==0){
-        dyspozytor();
-    }
-
-    id=fork();
-    if(id==0){
-        kierowca();
-    }
-    
-    for(int i=0; i<=ILO_PAS; i++){
-        id=fork();
-        if (id==0)
-        pasazer(i);
-    }
-*/
     while (wait(NULL)>0){
     }
     printf("Koniec, miejsca=%d\n", *miejsca);
-    shmdt(miejsca);
+    if(shmdt(miejsca)==-1){
+        perror("shmdt");
+        exit(1);
+    };
     printf("Odlaczono\n");
-    shmctl(id, IPC_RMID, NULL);
+    if(shmctl(id, IPC_RMID, NULL)==-1){
+        perror("shmctl");
+        exit(1);
+    };
     return 0;
 }
