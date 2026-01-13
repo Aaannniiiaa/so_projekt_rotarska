@@ -51,11 +51,6 @@ void unlock(int id_s){
     }
 }
 
-void kasa(){
-    printf("Kasa PID=%d\n", getpid());
-    exit(0);
-}
-
 void dyspozytor(){
     printf("Dyspozytor PID=%d\n", getpid());
     exit(0);
@@ -80,19 +75,28 @@ void pasazer(int nr, int *miejsca, int id_s){
     exit(0);
 }
 
+void kasa(int id_s, int *bilety){
+    lock(id_s);
+    (*bilety)++;
+    printf("Sprzedano bilet, bilety=%d\n", *bilety);
+    unlock(id_s);
+}
+
 int main(){
     key_t key = ftok("main.c", 'A');
     printf("Key = %d\n", (int)key);
-    int id = shmget(key,sizeof(int), IPC_CREAT | 0600);
+    int id = shmget(key,sizeof(int)*2, IPC_CREAT | 0600);
     if (id == -1){
         perror("shmget");
         exit(1);
     }
     printf("Id: %d\n", id);
 
-    int *miejsca = shmat(id, NULL, 0);
+    int *wspolne =shmat(id, NULL, 0);
+    int *miejsca=&wspolne[0]; //0-miejsca,1-bilety,2-kolejka
     *miejsca=POJ;
-    printf("Miejsca = %d\n", *miejsca);
+    int *bilety=&wspolne[1];
+    *bilety=0;
 
     key_t key_sem = ftok("main.c", 'B');
     if(key_sem == -1){
@@ -101,7 +105,7 @@ int main(){
     }
 
     int id_sem =create_or_get(key_sem);
-
+    kasa(id_sem, bilety);
     for(int i=1; i<=ILO_PAS; i++){
         int pid = fork();
         if(pid==0){
