@@ -14,9 +14,7 @@
 static int create_or_get(key_t key){
     int n_id_sem = semget(key, 1, IPC_CREAT | IPC_EXCL | 0600);
     if (n_id_sem!= -1) {
-        union union_sem { int val; } arg;
-        arg.val = 1;
-        if (semctl(n_id_sem, 0, SETVAL, arg) == -1) {
+        if (semctl(n_id_sem, 0, SETVAL, 1) == -1) {
             perror("semctl SETVAL");
             exit(1);
         }
@@ -99,10 +97,15 @@ void kasa(int id_s, int *bilety){
     (*bilety)++;
     printf("Sprzedano bilet, bilety=%d\n", *bilety);
     unlock(id_s);
+    exit(0);
 }
 
 int main(){
     key_t key = ftok("main.c", 'A');
+    if(key==-1){
+        perror("ftok key");
+        exit(1);
+    }
     printf("Key = %d\n", (int)key);
     int id = shmget(key,sizeof(int)*2, IPC_CREAT | 0600);
     if (id == -1){
@@ -124,7 +127,7 @@ int main(){
     }
 
     int id_sem =create_or_get(key_sem);
-    kasa(id_sem, bilety);
+    
     for(int i=1; i<=ILO_PAS; i++){
         int pid = fork();
         if(pid==0){
