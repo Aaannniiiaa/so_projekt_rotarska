@@ -1,14 +1,4 @@
 #pragma once
-#include <stdio.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <stdlib.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <unistd.h>
-#include <sys/sem.h>
-#include <stdbool.h>
-#include <errno.h>
 #include "struct.h"
 
 #define ILO_PAS 5

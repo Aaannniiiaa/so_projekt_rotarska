@@ -1,34 +1,52 @@
 #include "processes.h"
 #include "synch.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <stdlib.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#include <sys/sem.h>
+#include <stdbool.h>
+#include <errno.h>
 
 int create_or_get(key_t key){
-    int n_id_sem = semget(key, 5, IPC_CREAT | IPC_EXCL | 0600);
+    int n_id_sem = semget(key, LICZNIK, IPC_CREAT | IPC_EXCL | 0600);
     if (n_id_sem!= -1) {
-        if (semctl(n_id_sem, 0, SETVAL, 1) == -1) {
+        if (semctl(n_id_sem, LOCK, SETVAL, 1) == -1) {
             perror("semctl SETVAL");
             exit(1);
         }
-        if(semctl(n_id_sem, 1, SETVAL, 0)==-1){
+        if(semctl(n_id_sem, DRIVER, SETVAL, 0)==-1){
             perror("semctl driver");
             exit(1);
         }
         
-        if (semctl(n_id_sem, 2, SETVAL, 0)==-1){
+        if (semctl(n_id_sem, PROSBA, SETVAL, 0)==-1){
             perror("semctl kasa_pro");
             exit(1);
         }
-        if (semctl(n_id_sem, 3, SETVAL, 0)==-1){
+        if (semctl(n_id_sem, ODPOWIEDZ, SETVAL, 0)==-1){
             perror("semtcl kasa_odp");
             exit(1);
         }
-        if (semctl(n_id_sem, 4, SETVAL, 1)==-1){
+        if (semctl(n_id_sem, KASA, SETVAL, 1)==-1){
             perror("semctl kasa_s");
+            exit(1);
+        }
+        if(semctl(n_id_sem, WEJ_A, SETVAL, 1)==-1){
+            perror("semctl A");
+            exit(1);
+        }
+        if(semctl(n_id_sem, WEJ_B, SETVAL, 1)==-1){
+            perror("semctl B");
             exit(1);
         }
         return n_id_sem;
         }
     if (errno == EEXIST) {
-        n_id_sem = semget(key, 5, IPC_CREAT | 0600);
+        n_id_sem = semget(key, LICZNIK, IPC_CREAT | 0600);
         if (n_id_sem == -1) {
             perror("semget existing");
             exit(1);
@@ -116,6 +134,22 @@ void unlock(int id_s){
     struct sembuf x = {0, 1, 0};
     if (semop(id_s, &x, 1)==-1){
         perror("semop unlock");
+        exit(1);
+    }
+}
+
+void wait_wejscie(int id_s, int nr){
+    struct sembuf x = {nr, -1, 0};
+    if(semop(id_s, &x, 1)==-1){
+        perror("semop wait wejscie");
+        exit(1);
+    }
+}
+
+void signal_wejscie(int id_s, int nr){
+    struct sembuf y = {nr, 1,0};
+    if(semop(id_s, &y, 1)==-1){
+        perror("semop signal wejscie");
         exit(1);
     }
 }
