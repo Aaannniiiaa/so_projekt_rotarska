@@ -9,4 +9,7 @@ typedef struct dane {
     pid_t pasazer_pid;
     int odpowiedz;
     int rowery;
+    int rower_pas;
+    int dziecko_pas;
+    int pas_wiek;
 } dane;

@@ -34,6 +34,9 @@ int main(){
     d->pasazer_pid=0;
     d->odpowiedz=0;
     d->rowery=0;
+    d->rower_pas=0;
+    d->dziecko_pas=0;
+    d->pas_wiek=0;
 
 
     key_t key_sem = ftok("main.c", 'B');

@@ -2,7 +2,7 @@
 #include "struct.h"
 
 #define ILO_PAS 5
-#define P 2
+#define P 5
 #define R 1
 #define T 1
 #define Ti 3

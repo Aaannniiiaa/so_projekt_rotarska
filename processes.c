@@ -29,6 +29,7 @@ void kierowca(int id_s){
 
 void pasazer(int nr, int id_s, dane *d){
     int jest_rower = getpid() %2;
+    printf("Pasazer nr %d\n", nr);
     if(jest_rower){
         printf("Pasazer %d ma rower\n", nr);
     }
@@ -40,6 +41,7 @@ void pasazer(int nr, int id_s, dane *d){
     d->pasazer_nr=nr;
     d->pasazer_pid=getpid();
     d->odpowiedz=-1;
+
     unlock(id_s);
 
     signal_kasa_prosba(id_s);
@@ -66,6 +68,7 @@ void pasazer(int nr, int id_s, dane *d){
         }
         exit(0);
     }
+
     int wejscie;
     if(jest_rower){
         wejscie=WEJ_B;}
@@ -80,17 +83,7 @@ void pasazer(int nr, int id_s, dane *d){
         printf("Pasazer %d przechodzi przez wejscie A\n", nr);
     }
     signal_wejscie(id_s, wejscie);
-    lock(id_s);
-    if (d->miejsca > 0){
-        d->miejsca-=1;
-        printf("Pasazer %d wsiada, miejsca=%d, PID=%d\n", nr, d->miejsca, getpid());
-    }
-    else
-    {
-        printf("Pasazer %d, Brak miejsc, PID=%d\n", nr, getpid());
-    }
 
-    unlock(id_s);
     if(ost){
         signal_driver(id_s);
     }
@@ -101,18 +94,58 @@ void kasa(int id_s, dane *d){
     for(int i=0; i<ILO_PAS; i++){
         wait_kasa_prosba(id_s);
         lock(id_s);
-
-        if(d->bilety < P && d->miejsca > 0){
-            (d->bilety)++;
+        int potrzebne_m=1;
+        if(d->dziecko_pas){
+            potrzebne_m=2;
+        }
+        int potrzebny_r=0;
+        if(d->rower_pas){
+            potrzebny_r=1;
+        }
+        int m_miejsca=0;
+        if(d->miejsca>=potrzebne_m){
+            m_miejsca=1;
+        }
+        int r_miejsca=0;
+        if(!potrzebny_r){
+            r_miejsca=1;
+        }
+        else{
+            if(d->rowery<R){
+                r_miejsca=1;
+            }
+        }
+        int bilet_l=0;
+        if(d->bilety < P){
+            bilet_l=1;
+        }
+        if(bilet_l && m_miejsca && r_miejsca){
+            d->bilety+=1;
+            d->miejsca-=potrzebne_m;
+            if(potrzebny_r){
+                d->rowery+=1;
+            }
             d->odpowiedz=1;
-            printf("Sprzedano bilet dla pasazera %d, bilety %d\n", d->pasazer_nr, d->bilety);
+            printf("Sprzedano bilet dla pasazera %d\n", d->pasazer_nr);
         }
         else{
             d->odpowiedz=0;
-            printf("Brak biletow dla pasazera %d, bilety %d\n", d->pasazer_nr, d->bilety);
+            if(d->rower_pas && !r_miejsca){
+                printf("Pasazer %d ma rower ale brsk miejsca na rower\n", d->pasazer_nr);
+            }
+            else if(!m_miejsca){
+                printf("Brak miejsc dla pasazera %d\n", d->pasazer_nr);
+            }
+            else if(!bilet_l){
+                printf("Brak biletow dla pasazera %d\n", d->pasazer_nr);
+            }
+            else{
+                printf("Pasazer %d nie zostal obsluzony\n", d->pasazer_nr);
+            }
         }
         unlock(id_s);
         signal_kasa_odp(id_s);
+        
     }
     exit(0);
 }
