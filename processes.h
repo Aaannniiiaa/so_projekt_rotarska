@@ -9,14 +9,19 @@
 #include <sys/sem.h>
 #include <stdbool.h>
 #include <errno.h>
+#include "struct.h"
 
 #define ILO_PAS 5
-#define POJ 2
+#define P 2
+#define R 1
+#define T 1
+#define Ti 3
+#define N 1
 
 void dyspozytor();
 void kierowca(int id_s);
-void pasazer(int nr, int *miejsca, int id_s, int *bilety, int *pozostalo, int *pasazer_nr, int *pasazer_pid, int *odpowiedz);
-void kasa(int id_s, int *bilety, int *miejsca, int *pasazer_nr, int *pasazer_pid, int *odpowiedz);
+void pasazer(int nr, int id_s, dane *d);
+void kasa(int id_s, dane *d);
 void unlock(int id_s);
 void lock(int id_s);
 void signal_driver(int id_s);

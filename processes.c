@@ -11,12 +11,12 @@ void kierowca(int id_s){
     printf("kierowca odjezdza\n");
     exit(0);
 }
-void pasazer(int nr, int *miejsca, int id_s, int *bilety, int *pozostalo, int *pasazer_nr, int *pasazer_pid, int *odpowiedz){
+void pasazer(int nr, int id_s, dane *d){
     wait_kasa_s(id_s);
     lock(id_s);
-    *pasazer_nr=nr;
-    *pasazer_pid=getpid();
-    *odpowiedz=-1;
+    d->pasazer_nr=nr;
+    d->pasazer_pid=getpid();
+    d->odpowiedz=-1;
     unlock(id_s);
 
     signal_kasa_prosba(id_s);
@@ -24,14 +24,14 @@ void pasazer(int nr, int *miejsca, int id_s, int *bilety, int *pozostalo, int *p
 
     int kupil=0;
     lock(id_s);
-    kupil=*odpowiedz;
+    kupil=d->odpowiedz;
     unlock(id_s);
     signal_kasa_s(id_s);
 
     int ost=0;
     lock(id_s);
-    (*pozostalo)--;
-    if(*pozostalo==0){
+    (d->pozostalo)--;
+    if(d->pozostalo==0){
         ost=1;
     }
     unlock(id_s);
@@ -46,9 +46,9 @@ void pasazer(int nr, int *miejsca, int id_s, int *bilety, int *pozostalo, int *p
     }
     lock(id_s);
 
-    if (*miejsca > 0){
-        (*miejsca)--;
-        printf("Pasazer %d wsiada, miejsca=%d, PID=%d\n", nr, *miejsca, getpid());
+    if (d->miejsca > 0){
+        (d->miejsca)--;
+        printf("Pasazer %d wsiada, miejsca=%d, PID=%d\n", nr, d->miejsca, getpid());
     }
     else
     {
@@ -62,19 +62,19 @@ void pasazer(int nr, int *miejsca, int id_s, int *bilety, int *pozostalo, int *p
     exit(0);
 }
 
-void kasa(int id_s, int *bilety, int *miejsca, int *pasazer_nr, int *pasazer_pid, int *odpowiedz){
+void kasa(int id_s, dane *d){
     for(int i=0; i<ILO_PAS; i++){
         wait_kasa_prosba(id_s);
         lock(id_s);
 
-        if(*bilety < POJ && *miejsca > 0){
-            (*bilety)++;
-            *odpowiedz=1;
-            printf("Sprzedano bilet dla pasazera %d, bilety %d\n", *pasazer_nr, *bilety);
+        if(d->bilety < P && d->miejsca > 0){
+            (d->bilety)++;
+            d->odpowiedz=1;
+            printf("Sprzedano bilet dla pasazera %d, bilety %d\n", d->pasazer_nr, d->bilety);
         }
         else{
-            *odpowiedz=0;
-            printf("Brak biletow dla pasazera %d, bilety %d\n", *pasazer_nr, *bilety);
+            d->odpowiedz=0;
+            printf("Brak biletow dla pasazera %d, bilety %d\n", d->pasazer_nr, d->bilety);
         }
         unlock(id_s);
         signal_kasa_odp(id_s);

@@ -10,9 +10,7 @@
 #include <errno.h>
 #include "processes.h"
 #include "synch.h"
-
-#define ILO_PAS 5
-#define POJ 2
+#include "struct.h"
 
 int main(){
     key_t key = ftok("main.c", 'A');
@@ -21,27 +19,22 @@ int main(){
         exit(1);
     }
     printf("Key = %d\n", (int)key);
-    int id = shmget(key,sizeof(int)*6, IPC_CREAT | 0600);
+    int id = shmget(key,sizeof(dane), IPC_CREAT | 0600);
     if (id == -1){
         perror("shmget");
         exit(1);
     }
     printf("Id: %d\n", id);
 
-    int *wspolne =shmat(id, NULL, 0);
-    int *miejsca=&wspolne[0];
-    *miejsca=POJ;
-    int *bilety=&wspolne[1];
-    *bilety=0;
-    int *pozostalo=&wspolne[2];
-    *pozostalo=ILO_PAS;
-    int *pasazer_nr = &wspolne[3];
-    int *pasazer_pid = &wspolne[4];
-    int *odpowiedz = &wspolne[5];
+    dane *d = shmat(id,NULL,0);
+    d->miejsca=P;
+    d->bilety=0;
+    d->pozostalo=ILO_PAS;
+    d->pasazer_nr=0;
+    d->pasazer_pid=0;
+    d->odpowiedz=0;
+    d->rowery=0;
 
-    *pasazer_nr=0;
-    *pasazer_pid=0;
-    *odpowiedz=0;
 
     key_t key_sem = ftok("main.c", 'B');
     if(key_sem == -1){
@@ -57,20 +50,20 @@ int main(){
     
     int pid_kasa=fork();
     if(pid_kasa==0){
-        kasa(id_sem, bilety, miejsca, pasazer_nr, pasazer_pid, odpowiedz);
+        kasa(id_sem, d);
         exit(0);
     }
     for(int i=1; i<=ILO_PAS; i++){
         int pid = fork();
         if(pid==0){
-            pasazer(i, miejsca, id_sem, bilety, pozostalo, pasazer_nr, pasazer_pid, odpowiedz);
+            pasazer(i, id_sem, d);
         }
     }
 
     while (wait(NULL)>0){
     }
-    printf("Koniec, miejsca=%d\n", *miejsca);
-    if(shmdt(wspolne)==-1){
+    printf("Koniec, miejsca=%d\n", d->miejsca);
+    if(shmdt(d)==-1){
         perror("shmdt");
         exit(1);
     }
