@@ -3,7 +3,7 @@
 
 #define ILO_PAS 5
 #define P 5
-#define R 1
+#define R 5
 #define T 1
 #define Ti 3
 #define N 1

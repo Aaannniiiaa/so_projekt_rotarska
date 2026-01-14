@@ -28,9 +28,20 @@ void kierowca(int id_s){
 }
 
 void pasazer(int nr, int id_s, dane *d){
-    int jest_rower = getpid() %2;
-    printf("Pasazer nr %d\n", nr);
-    if(jest_rower){
+    int wiek=rand()%15;
+    int dziecko=(wiek < 8);
+    if(wiek<8){
+        dziecko=1;
+    }
+    int rower=0;
+    if(rand()%2==1){
+        rower=1;
+    }
+    printf("Pasazer nr %d, wiek=%d\n", nr, wiek);
+    if(dziecko){
+        printf("Pasazer %d to dziecko\n", nr);
+    }
+    if(rower){
         printf("Pasazer %d ma rower\n", nr);
     }
     else{
@@ -41,7 +52,9 @@ void pasazer(int nr, int id_s, dane *d){
     d->pasazer_nr=nr;
     d->pasazer_pid=getpid();
     d->odpowiedz=-1;
-
+    d->pas_wiek=wiek;
+    d->dziecko_pas=dziecko;
+    d->rower_pas=rower;
     unlock(id_s);
 
     signal_kasa_prosba(id_s);
@@ -70,17 +83,29 @@ void pasazer(int nr, int id_s, dane *d){
     }
 
     int wejscie;
-    if(jest_rower){
+    if(rower){
         wejscie=WEJ_B;}
         else{
             wejscie=WEJ_A;
         }
     wait_wejscie(id_s, wejscie);
-    if(jest_rower){
-        printf("Pasazer %d przechodzi przez wejscie B\n", nr);
+    if(dziecko){
+        if(wejscie== WEJ_A){
+            printf("Opiekun pasazera %d przechodzi przez A\n", nr);
+            printf("Dziecko pasazera %d przechodzi przez A\n", nr);
+        }
+        else{
+            printf("Opiekun pasazera %d przechodzi przez B\n", nr);
+            printf("Dziecko pasazera %d przechodzi przez B\n", nr);
+        }
     }
     else{
-        printf("Pasazer %d przechodzi przez wejscie A\n", nr);
+        if (wejscie == WEJ_A){
+            printf("Pasazer %d przechodzi przez A\n", nr);
+        }
+        else{
+            printf("Pasazer %d przechodzi przez B\n", nr);
+        }
     }
     signal_wejscie(id_s, wejscie);
 
