@@ -37,6 +37,11 @@ int main(){
     d->rower_pas=0;
     d->dziecko_pas=0;
     d->pas_wiek=0;
+    d->do_wejscia=0;
+    d->kasa_koniec=0;
+    d->kurs=0;
+    d->kier_budz=0;
+    d->koniec=0;
 
 
     key_t key_sem = ftok("main.c", 'B');
@@ -48,7 +53,7 @@ int main(){
     int id_sem =create_or_get(key_sem);
     int pid_k=fork();
     if(pid_k==0){
-        kierowca(id_sem);
+        kierowca(id_sem, d);
     }
     
     int pid_kasa=fork();

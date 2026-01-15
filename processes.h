@@ -2,14 +2,14 @@
 #include "struct.h"
 
 #define ILO_PAS 5
-#define P 5
+#define P 2
 #define R 5
 #define T 1
 #define Ti 3
-#define N 1
+#define N 3
 
 void dyspozytor();
-void kierowca(int id_s);
+void kierowca(int id_s, dane *d);
 void pasazer(int nr, int id_s, dane *d);
 void kasa(int id_s, dane *d);
 void unlock(int id_s);

@@ -12,4 +12,9 @@ typedef struct dane {
     int rower_pas;
     int dziecko_pas;
     int pas_wiek;
+    int do_wejscia;
+    int kasa_koniec;
+    int kurs;
+    int kier_budz;
+    int koniec;
 } dane;
