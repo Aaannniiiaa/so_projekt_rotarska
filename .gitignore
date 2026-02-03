@@ -1,0 +1,5 @@
+*.o
+main
+logger
+raport.txt
+.vscode/
