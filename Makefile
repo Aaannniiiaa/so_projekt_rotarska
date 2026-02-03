@@ -1,56 +1,31 @@
-CC      = gcc
-CFLAGS  = -Wall -Wextra -O2 -std=c11
-LDFLAGS =
+CC=gcc
+CFLAGS=-Wall -Wextra -O2 -std=c11
 
-# Programy
-BINS = main logger dyspozytor producer consumer
-
-# Wspólne obiekty
-COMMON_OBJS = ipc.o synch.o
+BINS=main logger producer consumer dyspozytor
 
 all: $(BINS)
 
-# ---------- MAIN ----------
-main: main.o ipc.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+main: main.o ipc.o synch.o
+	$(CC) $(CFLAGS) -o $@ $^
 
-main.o: main.c common.h ipc.h
-	$(CC) $(CFLAGS) -c $<
+logger: logger.o
+	$(CC) $(CFLAGS) -o $@ $^
 
-# ---------- LOGGER ----------
-logger: logger.o ipc.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-logger.o: logger.c common.h ipc.h
-	$(CC) $(CFLAGS) -c $<
-
-# ---------- DYSP ----------
-dyspozytor: dyspozytor.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-dyspozytor.o: dyspozytor.c common.h struct.h
-	$(CC) $(CFLAGS) -c $<
-
-# ---------- PRODUCER / CONSUMER (ring test) ----------
 producer: producer.o ipc.o synch.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-producer.o: producer.c common.h ipc.h synch.h struct.h
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -o $@ $^
 
 consumer: consumer.o ipc.o synch.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^
 
-consumer.o: consumer.c common.h ipc.h synch.h struct.h
+
+dyspozytor: dyspozytor.o shm.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+station_watch: station_watch.o shm.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+%.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
-# ---------- IPC / SYNCH ----------
-ipc.o: ipc.c ipc.h common.h
-	$(CC) $(CFLAGS) -c $<
-
-synch.o: synch.c synch.h common.h struct.h
-	$(CC) $(CFLAGS) -c $<
-
-# ---------- UTILS ----------
 clean:
 	rm -f *.o $(BINS) raport.txt
