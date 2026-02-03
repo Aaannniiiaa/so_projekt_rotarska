@@ -1,7 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "ipc.h"
 #include "common.h"
-
 #include <sys/msg.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -13,7 +12,6 @@
 static void log_send(int msgid, const char *txt) {
     log_msg m;
     m.mtype = LOG_MTYPE;
-    // bezpieczne kopiowanie
     snprintf(m.text, LOG_TEXT_MAX, "%s", txt);
 
     for (;;) {
@@ -27,15 +25,25 @@ static void log_send(int msgid, const char *txt) {
 int main(void) {
     int msgid = msg_create();
 
+    int shmid = shm_create();
+    shm_ring* shm = shm_attach(shmid);
+    int semid = sem_create();
+
+    shm->write_idx = 0;
+    shm->read_idx  = 0;
+    for (int i = 0; i < RING_SIZE; i++) shm->buffer[i] = 0;
+
     pid_t pid = fork();
     if (pid == -1) {
         perror("fork");
+        shm_detach(shm);
+        sem_remove(semid);
+        shm_remove(shmid);
         msg_remove(msgid);
         return 1;
     }
 
     if (pid == 0) {
-        // dziecko: exec logger z msgid jako argument
         char idbuf[32];
         snprintf(idbuf, sizeof(idbuf), "%d", msgid);
         execl("./logger", "logger", idbuf, (char*)NULL);
@@ -43,19 +51,18 @@ int main(void) {
         _exit(127);
     }
 
-    // rodzic: wysyła kilka logów
     log_send(msgid, "START");
-    log_send(msgid, "TEST: main -> logger (msg queue)");
+    log_send(msgid, "ETAP2: SHM+SEM created and initialized");
     log_send(msgid, "STOP");
 
-    // czekamy na logger
     int status = 0;
     if (waitpid(pid, &status, 0) == -1) perror("waitpid");
 
-    // sprzątamy kolejkę
+    shm_detach(shm);
+    sem_remove(semid);
+    shm_remove(shmid);
     msg_remove(msgid);
 
-    // mały komunikat w konsoli
     printf("Done. raport.txt created.\n");
     return 0;
 }
