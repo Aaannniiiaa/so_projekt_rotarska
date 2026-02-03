@@ -1,13 +1,12 @@
 #define _POSIX_C_SOURCE 200809L
 #include "ipc.h"
 #include "common.h"
+
 #include <sys/ipc.h>
 #include <sys/msg.h>
-#include <sys/shm.h>
 #include <sys/sem.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 
 union semun {
     int val;
@@ -40,40 +39,9 @@ void msg_remove(int msgid) {
     }
 }
 
-int shm_create(void) {
-    key_t key = get_key(FTOK_PROJ_SHM);
-    int shmid = shmget(key, sizeof(shm_ring), 0600 | IPC_CREAT);
-    if (shmid == -1) {
-        perror("shmget");
-        exit(1);
-    }
-    return shmid;
-}
-
-shm_ring* shm_attach(int shmid) {
-    void *p = shmat(shmid, NULL, 0);
-    if (p == (void*)-1) {
-        perror("shmat");
-        exit(1);
-    }
-    return (shm_ring*)p;
-}
-
-void shm_detach(shm_ring* p) {
-    if (!p) return;
-    if (shmdt((void*)p) == -1) {
-        perror("shmdt");
-    }
-}
-
-void shm_remove(int shmid) {
-    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
-        perror("shmctl(IPC_RMID)");
-    }
-}
-
 int sem_create(void) {
     key_t key = get_key(FTOK_PROJ_SEM);
+
     int semid = semget(key, SEM_COUNT, 0600 | IPC_CREAT);
     if (semid == -1) {
         perror("semget");

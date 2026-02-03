@@ -32,12 +32,12 @@ int shm_create(int *created) {
         exit(1);
     }
 
-    // już istnieje
     shmid = shmget(key, sizeof(station_state), 0600);
     if (shmid == -1) {
         perror("shmget(existing)");
         exit(1);
     }
+
     if (created) *created = 0;
     return shmid;
 }
@@ -49,12 +49,16 @@ station_state* shm_attach(int shmid, int do_init) {
         exit(1);
     }
 
-    // KLUCZ: to MUSI być wskaźnik
     station_state *st = (station_state*)addr;
 
     if (do_init) {
         memset(st, 0, sizeof(*st));
-        // wszystko wyzerowane: is_open=0, shutdown=0, ring idx/count=0, buf[]=0
+        st->is_open = 0;
+        st->shutdown = 0;
+        st->ring.write_idx = 0;
+        st->ring.read_idx  = 0;
+        st->ring.count     = 0;
+        // buf[] jest wyzerowane przez memset
     }
 
     return st;

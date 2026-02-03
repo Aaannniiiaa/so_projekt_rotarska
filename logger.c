@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
 #include "common.h"
-
 #include <sys/msg.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -21,7 +20,6 @@ int main(int argc, char **argv) {
 
     log_msg m;
     for (;;) {
-        // odbieramy tylko LOG_MTYPE
         ssize_t r = msgrcv(msgid, &m, log_msg_size(), LOG_MTYPE, 0);
         if (r == -1) {
             if (errno == EINTR) continue;
@@ -30,7 +28,6 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        // zapisujemy linię + \n
         size_t len = strnlen(m.text, LOG_TEXT_MAX);
         if (write(fd, m.text, len) == -1) { perror("write"); break; }
         if (write(fd, "\n", 1) == -1) { perror("write"); break; }
