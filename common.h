@@ -1,18 +1,22 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <stddef.h>
 #include <sys/types.h>
+#include <stddef.h>
 
-// ====== FTOK ======
+/* ====== FTOK ====== */
+#ifndef FTOK_PATH
 #define FTOK_PATH "."
-#define FTOK_PROJ_LOG 'L'
-#define FTOK_PROJ_SHM 'M'
-#define FTOK_PROJ_SEM 'S'
+#endif
 
-// ====== LOGGER MSG (kolejka komunikatów) ======
-#define LOG_MTYPE    1L
-#define LOG_TEXT_MAX 256
+#define FTOK_PROJ_LOG   'L'
+#define FTOK_PROJ_KASA  'K'
+#define FTOK_PROJ_STSHM 'S'
+#define FTOK_PROJ_STSEM 'E'
+
+/* ====== LOG QUEUE ====== */
+#define LOG_MTYPE     1L
+#define LOG_TEXT_MAX  128
 
 typedef struct {
     long mtype;
@@ -23,27 +27,46 @@ static inline size_t log_msg_size(void) {
     return sizeof(((log_msg*)0)->text);
 }
 
-// ====== SHM: ring + stan dworca ======
-#define RING_SIZE 10
+/* ====== KASA QUEUE ====== */
+#define KASA_MTYPE_VIP  1L
+#define KASA_MTYPE_NORM 2L
 
 typedef struct {
-    int write_idx;
-    int read_idx;
-    int count;              // debug/podgląd; przy semaforach nie jest konieczne, ale pomaga w watch
-    int buf[RING_SIZE];
-} shm_ring;
+    long  mtype;        /* VIP/NORM */
+    pid_t pid;
+
+    int is_vip;
+    int has_bike;
+    int is_child;
+    int with_guardian;
+} kasa_req;
+
+static inline size_t kasa_req_size(void) {
+    return sizeof(kasa_req) - sizeof(long);
+}
 
 typedef struct {
-    int is_open;            // 0/1: czy odjazdy dozwolone
-    int shutdown;           // 0/1: zamknięcie na zawsze
-    shm_ring ring;
+    long mtype;         /* = pid */
+    int  ok;
+    int  ticket_no;
+} kasa_resp;
+
+static inline size_t kasa_resp_size(void) {
+    return sizeof(kasa_resp) - sizeof(long);
+}
+
+/* ====== STATION / BUS LIMITS (ETAP 3) ====== */
+#define ST_MAX_P 50   /* max miejsc (ludzie) */
+#define ST_MAX_R 10   /* max rowerów */
+
+/* ====== SHM STATE (wspólny stan przystanku/busa) ====== */
+typedef struct {
+    int is_open;          /* 1 = trwa boarding, 0 = zamknięte */
+    int shutdown;         /* 1 = koniec symulacji */
+    int force_departure;  /* 1 = wymuś odjazd */
+
+    int onboard_people;   /* ilu już w autobusie */
+    int onboard_bikes;    /* ile rowerów w autobusie */
 } station_state;
-
-// ====== SEMAFORY dla ring ======
-// 0=mutex, 1=empty, 2=full
-#define SEM_MUTEX 0
-#define SEM_EMPTY 1
-#define SEM_FULL  2
-#define SEM_COUNT 3
 
 #endif

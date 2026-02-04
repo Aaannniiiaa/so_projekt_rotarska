@@ -1,26 +1,32 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -O2 -std=c11
 
-ALL=main logger producer consumer dyspozytor station_watch
+ALL=logger kasa passenger sim_main kasa_test dyspozytor kierowca
 
 all: $(ALL)
 
-main: main.o ipc.o synch.o shm.o
-	$(CC) $(CFLAGS) -o $@ $^
+%.o: %.c
+	$(CC) $(CFLAGS) -c $<
 
 logger: logger.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-producer: producer.o ipc.o synch.o shm.o
+kasa: kasa.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-consumer: consumer.o ipc.o synch.o shm.o
+passenger: passenger.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-dyspozytor: dyspozytor.o shm.o
+sim_main: sim_main.o ipc.o kasa_ipc.o shm.o station_ipc.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-station_watch: station_watch.o shm.o
+kasa_test: kasa_test.o ipc.o kasa_ipc.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+dyspozytor: dyspozytor.o shm.o station_ipc.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+kierowca: kierowca.o shm.o station_ipc.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 %.o: %.c

@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "common.h"
+
 #include <sys/msg.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -10,7 +11,7 @@
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <msgid>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <log_msgid>\n", argv[0]);
         return 2;
     }
     int msgid = atoi(argv[1]);

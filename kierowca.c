@@ -19,12 +19,12 @@ static void install_handlers(void) {
 
 int main(void) {
     install_handlers();
-    printf("[DYSP] pid=%d start\n", getpid());
+    printf("[KIER] pid=%d start\n", getpid());
     fflush(stdout);
 
     while (!g_stop) pause();
 
-    printf("[DYSP] exit\n");
+    printf("[KIER] exit\n");
     fflush(stdout);
     return 0;
 }
