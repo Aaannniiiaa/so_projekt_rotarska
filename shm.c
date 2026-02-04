@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
 #include "shm.h"
-#include "common.h"
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -8,29 +7,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static key_t shm_key(void) {
-    key_t k = ftok(FTOK_PATH, FTOK_PROJ_STSHM);
-    if (k == (key_t)-1) { perror("ftok(SHM)"); exit(1); }
-    return k;
-}
-
 int shm_create(int *created) {
+    key_t key = ftok(".", 'M');
+    if (key == -1) { perror("ftok"); exit(1); }
+
     if (created) *created = 0;
 
-    key_t k = shm_key();
-
-    // próbuj stworzyć "na świeżo"
-    int shmid = shmget(k, (int)sizeof(station_state), 0600 | IPC_CREAT | IPC_EXCL);
-    if (shmid >= 0) {
+    int shmid = shmget(key, (int)sizeof(station_state), 0600 | IPC_CREAT | IPC_EXCL);
+    if (shmid == -1) {
+        if (errno != EEXIST) { perror("shmget"); exit(1); }
+        shmid = shmget(key, (int)sizeof(station_state), 0600 | IPC_CREAT);
+        if (shmid == -1) { perror("shmget existing"); exit(1); }
+    } else {
         if (created) *created = 1;
-        return shmid;
     }
 
-    // jak już istnieje -> otwórz istniejący
-    if (errno != EEXIST) { perror("shmget create"); exit(1); }
+    station_state *st = (station_state*)shmat(shmid, NULL, 0);
+    if (st == (void*)-1) { perror("shmat"); exit(1); }
 
-    shmid = shmget(k, (int)sizeof(station_state), 0600 | IPC_CREAT);
-    if (shmid == -1) { perror("shmget open"); exit(1); }
+    if (created && *created) {
+        st->event = ST_EV_NONE;
+        st->koniec = 0;
+        st->kurs = 0;
+        st->na_przystanku = 0;
+        st->w_autobusie = 0;
+    }
+
+    if (shmdt(st) == -1) { perror("shmdt"); exit(1); }
     return shmid;
 }
 
@@ -42,10 +45,10 @@ station_state* shm_attach(int shmid) {
 
 void shm_detach(station_state *st) {
     if (!st) return;
-    if (shmdt(st) == -1) perror("shmdt");
+    if (shmdt(st) == -1) { perror("shmdt"); exit(1); }
 }
 
 void shm_remove(int shmid) {
     if (shmid < 0) return;
-    if (shmctl(shmid, IPC_RMID, NULL) == -1) perror("shmctl(IPC_RMID)");
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) perror("shmctl IPC_RMID");
 }
