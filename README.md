@@ -185,13 +185,30 @@ Częstotliwość logów zależy od trybu (w test5000 logi są ograniczone, żeby
 
 7. Testy
 Test 1 - testuję czy przy zbyt dużej ilości pasażerów nadmiar ich wejdzie
-https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/6bc10ee54e42dc9bf79349e7f5566c9a992bcbc8/passenger_sim.c#L97-L119
+Obsługa: https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/6bc10ee54e42dc9bf79349e7f5566c9a992bcbc8/passenger_sim.c#L97-L119
+Limit miejsc jest wymuszany przez semafor SEM_SEATS - rezerwca odbywa się atomowo w reserve_begin_atomic()
 
 Test 2 - testuję czy przy zbyt dużej ilości pasażerów z rowerami nadmiar ich wejdzie
+Obsługa: https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/6bc10ee54e42dc9bf79349e7f5566c9a992bcbc8/passenger_sim.c#L97-L119 (gałąź else dla bike)
+Limit rowerów jest wymuszany semaforem SEM_BIKES w reserve_begin_atomic(). Rezerwacja atomowa przed wejściem.
 
 Test 3 - testuję czy na sygnał 1 od dyspozytora autobus odjedzie (nawet jeśli jest niepełny)
+Dyspozytor każe odjechać: https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/dyspozytor.c#L118C9-L146C10
+Kierowca reaguje i odjeżdża: https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/kierowca.c#L353C8-L373C10
 
 Test 4 - testuję czy na sygnał 2 nikt nie wejdzie do autobusu
+Dyspozytor: https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/kierowca.c#L353C8-L373C10
+Kierowca: https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/kierowca.c#L353C8-L373C10
+Pasażer nie wsiądzie bo sprawdza stop/event i robi rollback rezerwacji.
 
 Test 5 - testuję czy autobus odjedzie co czas T
+sim_main.c : https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/sim_main.c#L484C1-L496C7
 
+8. Wymagane funkcje
+1) Tworzenie i obsługa plików: fopen/fclose : https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/logger.c#L26C5-L71C15
+2) Tworzenie procesów: fork, execv, waitpid : https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/sim_main.c#L86C1-L121C49
+3) Kolejka komunikatów: msgget, msgsnd, msgctl, msgrcv : https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/kasa_ipc.c#L14C1-L101C2
+https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/passenger_sim.c#L213C8-L213C94
+4) Segmenty pamięci dzielonej: shmget, shmctl, shmat, shmdt : https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/shm.c#L16C1-L63C2
+5) Obsługa sygnałów: sigaction, signal, kill : https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/sim_main.c#L421C5-L562C14
+6) Synchronizacja procesów: semget, semctl, semop :  https://github.com/Aaannniiiaa/so_projekt_rotarska/blob/2cc6e5a62d1ce8dc6e4056c359663b29e15ace3b/src/sem_ipc.c#L19C1-L170C2
