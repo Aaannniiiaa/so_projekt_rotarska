@@ -1,8 +1,9 @@
 #ifndef IPC_H
 #define IPC_H
 
-int  msg_create_clean(void);
-void msg_remove(int msgid);
+#include <sys/types.h>
+#include <sys/ipc.h>
 
+key_t ipc_key(char proj);
 
 #endif
