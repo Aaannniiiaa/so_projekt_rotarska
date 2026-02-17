@@ -1,152 +1,71 @@
 #define _POSIX_C_SOURCE 200809L
-#include "kasa_ipc.h"
-#include "log_ipc.h"
-#include "shm.h"
-#include "sem_ipc.h"
+#include "log.h"
 #include "common.h"
-#include <sys/msg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include "ipc.h"
+#include "ring.h"
+#include "kasa.h"
 #include <errno.h>
+#include <signal.h>
 #include <string.h>
-#include <errno.h>
 
-static int sem_try_take(int semid, int idx){
-    struct sembuf op = { (unsigned short)idx, -1, IPC_NOWAIT };
-    if(semop(semid, &op, 1) == 0) 
-        return 0;
-    if(errno == EAGAIN) 
-        return 1;
-    return -1;
-}
-static int sem_take(int semid, int idx){
-    struct sembuf op = { (unsigned short)idx, -1, 0 };
-    return sem_do(semid, &op, 1);
+//KASA - obsluguje normalnych pasazerow, odbiera ich z kolejki ring ring_kasa i odsyla im ok przez msg_kasa
+
+//flagi
+static volatile sig_atomic_t g_stop = 0;
+static void on_sig(int sig){
+    (void)sig;
+    g_stop = 1;
 }
 
-static int pick_vip_first(station_state* st, int semid){
-    int wv, wn;
-    sem_lock(semid);
-    wv = st->waiting_vip;
-    wn = st->waiting_norm;
-    sem_unlock(semid);
-
-    if(wv > 0) 
-        return 1;
-    if(wn > 0) 
-        return 0;
-    return 1;
+static void install_handlers(void){
+    struct sigaction sa; //tworzymy strukture
+    memset(&sa, 0, sizeof(sa)); //zerujemy
+    sa.sa_handler = on_sig; //handler na on sig
+    sigemptyset(&sa.sa_mask); //maska pusta - nie blokujemy dodatkowych sygnalow
+    sa.sa_flags = 0;
+    (void)sigaction(SIGINT, &sa, NULL); //obsluga dla ctrl c i sigterm
+    (void)sigaction(SIGTERM, &sa, NULL);
 }
 
-int main(int argc, char** argv){
-    if(argc < 5){
-        fprintf(stderr, "usage: %s <shmid> <vip_qid> <norm_qid> <log_qid>\n", argv[0]);
-        return 1;
-    }
-
-    int shmid = atoi(argv[1]);
-    int vip_qid = atoi(argv[2]);
-    int norm_qid = atoi(argv[3]);
-    int log_qid = atoi(argv[4]);
-
-    station_state* st = shm_attach(shmid);
-    int semid = st->semid;
-
-    sem_lock(semid);
-    st->pid_kasa = getpid();
-    sem_unlock(semid);
-
-    printf("[KASA pid=%d] start (VIP> NORMAL)\n", (int)getpid());
-
-    long served = 0;
-
+//wysylanie odpowiedzi do pasazera //retry zeby kasa nie wywalila sie przez sygnal
+static int send_kasa_resp_retry(int msg_kasa, pid_t pid, int ok){
     for(;;){
-    if(sem_take(semid, SEM_KASA_ANY) == -1) 
-        break;
-
-    sem_lock(semid);
-    int ev = (int)st->event;
-    sem_unlock(semid);
-    if(ev == EV_KONIEC) 
-        break;
-
-    int from_vipq = -1;
-    int tr = sem_try_take(semid, SEM_QVIP);
-    if(tr == 0){
-        from_vipq = 1;
-    } else if(tr == 1) {
-        tr = sem_try_take(semid, SEM_QNORM);
-        if(tr == 0) {
-            from_vipq = 0;
+        if (msg_send_kasa_resp(msg_kasa, pid, ok) == 0) return 0; //robi msgsng 
+        if (errno == EINTR) { //moze sie przerwac sygnalem
+            if (g_stop) return -1;
+            continue; //wiec probujemy jeszcze raz
         }
-        else if(tr == 1){
-            continue;
-        } else {
-            break;
-        }
-    } else {
-        break;
+        return -1;
     }
+}
 
-    int qid = from_vipq ? vip_qid : norm_qid;
+int kasa_main(int msg_kasa, int semid, ring_kasa_t *rk) {
+    install_handlers();
+    log_msg("KASA", "START t=%d", sim_now()); //loguje start z czasem symulacji
 
-    kasa_req req;
-    for(;;){
-        ssize_t rc = msgrcv(qid, &req, sizeof(req) - sizeof(long), 1, 0);
-        if(rc >= 0) 
-            break;
-        if(errno == EINTR) 
-            continue;
-        if(errno == EIDRM) 
-            goto out;
-        goto out;
-    }
-
-        if(req.idx == -1){
-            break;
+    for (;;) { //dziala dopiki nie dostanie stop
+        passenger_t p;
+        if (ring_kasa_pop(rk, semid, &p) == -1) { //blokujace pobranie z kolejki ring: czeka na SEM KASA FULL, lockuje SEM KASA MUTEX, pobniera ele
+            //oblokowuje mutex i podbija SEM KASA EMPTY - zwalnia miejsce
+            //obsluga bledu
+            if (g_stop) break; //koniec
+            if (errno == EINTR) continue;
+            if (errno == EIDRM || errno == EINVAL) break; //ipc zniknelo konczymy
+            log_msg("KASA", "ERROR ring_kasa_pop errno=%d", errno);
+            return 1;
         }
-
-        sem_lock(semid);
-        int ev2 = (int)st->event;
-        int kurs = (int)st->kurs;
-        sem_unlock(semid);
-
-        if(ev2 == EV_KONIEC){
-            (void)kasa_send_resp(qid, req.pid, 0, -1);
-            continue;
-        }
-
-        int ticket;
-        sem_lock(semid);
-        ticket = st->next_ticket++;
-        st->last_ticket = ticket;
-
-        st->cnt_req_total += 1;
-        if(from_vipq)
-            st->cnt_vip += 1;
-        if(req.child)
-            st->cnt_child += 1;
-        if(req.bike)
-            st->cnt_bike  += 1;
-        sem_unlock(semid);
-
-        if(kasa_send_resp(qid, req.pid, 1, ticket) == -1){
+        if (p.pid == 0 && p.passenger_no == -1) { //stop token
+            log_msg("KASA", "STOP token t=%d", sim_now());
             break;
         }
-
-        served++;
-
-        if(log_qid != -1 && should_print(served, KASA_PRINT_EVERY)){
-            char line[220];
-            snprintf(line, sizeof(line), "KASA kurs=%d %s pid=%d idx=%d ticket=%d child=%d bike=%d seats=%d", kurs,
-            (from_vipq ? "VIP" : "NORMAL"), (int)req.pid, req.idx, ticket, req.child, req.bike, req.seats);
-            (void)log_send(log_qid, line);
+        //obsluga pasazera
+        if (send_kasa_resp_retry(msg_kasa, p.pid, 1) == -1) { //kasa odsyla pasazerowi odpowiedz przez msg kasa ok=1
+            if (g_stop) break; //jesli stop -wyjdz
+            log_msg("KASA", "ERROR msgsnd resp errno=%d", errno);
+            return 1;
         }
     }
 
-out:
-    shm_detach(st);
-    printf("[KASA] stop\n");
+    log_msg("KASA", "KONIEC t=%d", sim_now()); //logujemy koniec 
     return 0;
 }

@@ -1,115 +1,114 @@
 #ifndef COMMON_H
 #define COMMON_H
-
 #define _POSIX_C_SOURCE 200809L
-
 #include <sys/types.h>
-#include <signal.h>
+#include <stdlib.h>
+#include <time.h>
 
-#ifndef SLEEPY
-#define SLEEPY 0
+
+//domyslne parametry symluacji
+#define DEF_N 2 //liczba kierowcow
+#define DEF_M 50 //liczba pasazerow
+#define DEF_INSIDE 20 //ile osob max moze byc w srodku (dzielone na A i B)
+#define DEF_P 10 //limit miejsc osobowych w autobusie w kursie
+#define DEF_R 2 // limit miejsc rowerowych
+#define DEF_T 3 //ile sekund kierowca czeka max na dobor ludzi
+#define DEF_Ti 2 //czas powrotu
+
+//losowosc pasazerow
+#ifndef VIP_PCT
+#define VIP_PCT  0 //szansa na VIP - pomija kase
 #endif
 
-#if SLEEPY
-  #include <time.h>
-
-  static inline void SIM_SLEEP(unsigned sec) {
-      struct timespec ts;
-      ts.tv_sec  = (time_t)sec;
-      ts.tv_nsec = 0;
-      nanosleep(&ts, NULL);
-  }
-
-  static inline void SIM_USLEEP(unsigned us) {
-      struct timespec ts;
-      ts.tv_sec  = (time_t)(us / 1000000u);
-      ts.tv_nsec = (long)(us % 1000000u) * 1000L;
-      nanosleep(&ts, NULL);
-  }
-#else
-  static inline void SIM_SLEEP(unsigned sec) {
-    (void)sec;
-}
-  static inline void SIM_USLEEP(unsigned us) {
-    (void)us;
-}
+#ifndef BIKE_PCT
+#define BIKE_PCT 0 //szansa na rower - wchodzi wesjciem B i zasjmuje miejsce rowerowe
 #endif
 
-#ifndef PAS_PRINT_EVERY
-#define PAS_PRINT_EVERY 0
+#ifndef SPAWN_MAX_DELAY_MS
+#define SPAWN_MAX_DELAY_MS 200 //max losowy delay miedzy spawnami pasazerow
 #endif
+//^^^
 
-#ifndef KASA_PRINT_EVERY
-#define KASA_PRINT_EVERY 0
-#endif
-
-#ifndef KIER_PRINT_EVERY
-#define KIER_PRINT_EVERY 1
-#endif
-
-static inline int should_print(long x, int every){
-    if(every <= 0) return 0;
-    if(every == 1) return 1;
-    return (x % every) == 0;
-}
-
-typedef enum {
-    EV_NONE   = 0,
-    EV_ODJAZD = 1,
-    EV_KONIEC = 2
-} event_t;
+//rozmiary ringow
+#define RING_KASA_SIZE   128 
+#define RING_BOARD_SIZE  8192
 
 enum {
-    SEM_MUTEX = 0,
-    SEM_SEATS = 1,
-    SEM_BIKES = 2,
-    SEM_ENTR1 = 3,
-    SEM_ENTR2 = 4,
-
-    SEM_QANY  = 5,
-    SEM_QVIP  = 6,
-    SEM_QNORM = 7,
-    SEM_BOARDING = 8,
-    SEM_KASA_ANY = 9,
-    SEM_BUS_WAKE = 10
+    SEM_SHM_MUTEX = 0, //ochrona share_state_t //dysp, pas, driver
+    SEM_IN_A, //ile miejsc w srodku (osobno piesi i rowery) //pas, driver
+    SEM_IN_B, //^^^
+    SEM_GATE_A, //bramka do atomowego wejscia
+    SEM_GATE_B, //^^
+    SEM_KASA_EMPTY, //ring do kasy //ring.c
+    SEM_KASA_FULL, //^^
+    SEM_KASA_MUTEX, //^^
+    SEM_BVIP_EMPTY, //ringi boarding
+    SEM_BVIP_FULL, //^^
+    SEM_BVIP_MUTEX, //^^
+    SEM_BNORM_EMPTY, //^^
+    SEM_BNORM_FULL, //^^
+    SEM_BNORM_MUTEX, //^^
+    SEM_BOARD_ANY, //czy jest cos do zabrania (token dla kierowcow) //pas, driver //rosnie tez przy STOP aby obudzic kierowce gdy konczymy
+    SEM_DELAY, //kernel wait //czas powrotu kierowcy
+    SEM_SPAWN_DELAY, //^^
+    SEM_COUNT_BASE
 };
 
+//dane pasazera, to sa inf wrzucane do ringa
+//uzywamy w pas buduje req i wrzuca do ring, kasa odbiera ring_kasa i odpowiada do pid, driver wyciaga z boardingu i wysyla inv do pid
+//pid=0 pas_no =-1 -> koniec, kasa/driver wychodza
 typedef struct {
-    volatile sig_atomic_t event;
-    volatile sig_atomic_t kurs;
-    volatile sig_atomic_t stop;
-    volatile sig_atomic_t force_depart;
+    pid_t pid;
+    int passenger_no;
+    int vip;
+    int bike;
+    int age;
+    int is_child;
+    int seats;
+} passenger_t;
 
-    int shmid;
-    int kasa_qid_vip;
-    int kasa_qid_norm;
-    int log_qid;
-    int semid;
+//SHM
+//wszystko pod SEM_SHM_MUTEX
+typedef struct {
+    int stop; //flaga konczenia (dysp ustawia)
+    int launch_done; //juz nie bedzie nowych pasazerow
+    int served_total; //ile zostalo obsluzonych (driver++)
+    int arrived_total; //ile pasazerow dotarlo do boardingu (pas++)
+} shared_state_t;
 
-    pid_t pid_dysp;
-    pid_t pid_kier;
-    pid_t pid_kasa;
-    pid_t pid_logger;
+//zeby nie zalac terminala przy duzej ilosci M
+//loguje co np 200 pasazer //uzyte w pasazer
+#ifndef LOG_EVERY
+#define LOG_EVERY 200
+#endif
 
-    int next_ticket;
-    int cnt_req_total;
-    int cnt_vip;
-    int cnt_child;
-    int cnt_bike;
-    int last_ticket;
-    int waiting_vip;
-    int waiting_norm;
-    int P;
-    int R;
-    int onboard;
-    int onboard_bikes;
-    int buses_total;
-    int buses_free;
-    int bus_at_station;
-    int T;
-    int Ti_min;
-    int Ti_max;
+static inline int log_every_hit(int x) {
+    return (LOG_EVERY > 0) && (x % LOG_EVERY == 0);
+}
 
-} station_state;
+//czas symulacji przez env
+//zeby kazdy proces mial wspolny czas t=0
+#define SIM_ENV_START "SIM_START_EPOCH"
+
+static inline time_t sim_get_start_epoch(void) {
+    const char *s = getenv(SIM_ENV_START);
+    if (!s || !*s)
+        return time(NULL);
+    long v = strtol(s, NULL, 10);
+    if (v <= 0)
+        return time(NULL);
+    return (time_t)v;
+}
+
+static inline int sim_now(void) {
+    time_t start = sim_get_start_epoch();
+    time_t now = time(NULL);
+    long delta = (long)(now - start);
+    if (delta < 0)
+        delta = 0;
+    if (delta > 2147483647L)
+        delta = 2147483647L;
+    return (int)delta;
+}
 
 #endif
